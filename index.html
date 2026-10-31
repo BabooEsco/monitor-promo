@@ -205,6 +205,9 @@ dialog::backdrop{background:rgba(15,21,28,.55);backdrop-filter:blur(3px)}
 .player{position:relative;background:var(--m-surface);border-radius:var(--m-radius-card);overflow:hidden}
 .screen{position:relative;aspect-ratio:16/9;color:#f4f7fa;background:var(--m-hero-bg);overflow:hidden}
 .screen canvas{position:absolute;inset:0;width:100%;height:100%}
+.screen video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#0f151c}
+.screen.is-video canvas,.screen.is-video .scene,.screen.is-video .sub{display:none}
+.screen:not(.is-video) video{display:none}
 .scene{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:14px;padding:6% 8%}
 .badge{align-self:flex-start;font:400 11px var(--m-mono);letter-spacing:.14em;text-transform:uppercase;border:1px solid rgba(228,233,238,.35);color:var(--d-ink);padding:4px 10px;border-radius:6px}
 .vis{font:200 clamp(20px,2.8vw,32px)/1.25 var(--m-font);max-width:26ch}
@@ -426,8 +429,9 @@ dialog::backdrop{background:rgba(15,21,28,.55);backdrop-filter:blur(3px)}
 <dialog id="player" aria-label="Video">
   <div class="player">
     <button class="x" id="p-close" type="button" aria-label="Chiudi">×</button>
-    <div class="screen">
+    <div class="screen" id="p-screen">
       <canvas id="p-canvas" aria-hidden="true"></canvas>
+      <video id="p-video" playsinline preload="metadata"></video>
       <div class="scene">
         <span class="badge">Storyboard · video in produzione</span>
         <p class="vis" id="p-vis"></p>
@@ -458,7 +462,13 @@ const $ = id => document.getElementById(id);
 
 /* ===== CONTENUTI =====
    Ogni video è uno storyboard: t = secondo di inizio, vis = cosa si vede, vo = voce fuori campo.
-   Quando il video vero sarà pronto, si aggiungerà video:'media/nome.mp4'. */
+   Quando il video vero è pronto si aggiungono i campi:
+     video:'media/nome.mp4'   (obbligatorio per il video vero, MP4 H.264)
+     poster:'media/nome.jpg'  (facoltativo, fotogramma mostrato prima dell'avvio)
+     vtt:'media/nome.vtt'     (facoltativo, sottotitoli in italiano)
+     dur:52                   (facoltativo, durata in secondi mostrata sulle schede)
+   Gli shots restano: diventano i capitoli cliccabili sotto il video (t = secondo nel video).
+   Se il file non si carica, il player torna da solo allo storyboard. */
 const S = (a,b,c) => [{t:0,vis:a[0],vo:a[1]},{t:7,vis:b[0],vo:b[1]},{t:14,vis:c[0],vo:c[1]}];
 
 const HERO = { title:'Cos’è MONITOR', step:'Video di apertura',
@@ -577,6 +587,7 @@ const AUD = {
 const AUDS = Object.keys(AUD);
 const DATA = {blue:'#3f5f80', sky:'#8fb0d2', amber:'#d7a24a', green:'#6fbf8f', reactive:'#d9776a', base:'#5b6775'};
 const durOf = shots => shots[shots.length-1].t + 7;
+const lenOf = x => x.video && x.dur ? x.dur : durOf(x.shots);
 
 /* Miniature: barre orarie come nella dashboard, l'ultima più luminosa (§5 Grafici) */
 function bars(color, seed){
@@ -596,13 +607,13 @@ function render(){
   const a=AUD[aud];
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.aud===aud));
   $('a-title').textContent=a.title; $('a-lead').textContent=a.lead;
-  $('a-play').innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg> ${a.hero.title} · ${fmt(durOf(a.hero.shots))}`;
+  $('a-play').innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg> ${a.hero.title} · ${fmt(lenOf(a.hero))}`;
   $('rail').innerHTML=a.rail.map(r=>`<span>${r}</span>`).join('');
   $('grid').innerHTML=a.cards.map((c,i)=>`
     <button class="card" type="button" data-i="${i}">
       <div class="thumb" aria-hidden="true">${bars(DATA[c.data],i+AUDS.indexOf(aud)*5)}
         <span class="mini-play"><svg width="12" height="12" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="#1f2a36"/></svg></span>
-        <span class="dur">${fmt(durOf(c.shots))}</span></div>
+        <span class="dur">${fmt(lenOf(c))}</span></div>
       <div class="card-body">
         <span class="step">${String(i+1).padStart(2,'0')} / 05 · ${a.rail[i]}</span>
         <h3>${c.title}</h3><p>${c.desc}</p>
@@ -616,7 +627,7 @@ function render(){
 }
 $('tabs').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; aud=b.dataset.aud; history.replaceState(null,'','#'+aud); render();});
 $('grid').addEventListener('click',e=>{const c=e.target.closest('.card'); if(!c) return; const i=+c.dataset.i, x=AUD[aud].cards[i];
-  openPlayer({step:`Video ${i+1} di 5`, title:x.title, benefit:x.desc, shots:x.shots});});
+  openPlayer({step:`Video ${i+1} di 5`, title:x.title, benefit:x.desc, shots:x.shots, video:x.video, poster:x.poster, vtt:x.vtt, dur:x.dur});});
 $('a-play').addEventListener('click',()=>{const h=AUD[aud].hero; openPlayer({step:'Video di apertura',...h});});
 $('hero-play').addEventListener('click',()=>openPlayer(HERO));
 
@@ -640,11 +651,29 @@ function drawPulse(t){
 }
 const ICON_PAUSE='<svg width="14" height="14" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="#1f2a36"/></svg>';
 const ICON_PLAY='<svg width="14" height="14" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="#1f2a36"/></svg>';
+/* Video vero: se l'elemento ha il campo video, il player usa il file e tiene gli shots come capitoli.
+   Se il file manca o non si carica, torna allo storyboard. */
+const vid=$('p-video'), scr=$('p-screen');
+function stopVideo(){vid.pause(); vid.removeAttribute('src'); vid.removeAttribute('poster'); vid.querySelectorAll('track').forEach(t=>t.remove()); vid.load();}
+function toStoryboard(){ if(!P||!P.vmode) return; P.vmode=false; P.dur=durOf(P.shots); P.t=Math.min(P.t,P.dur); P.cur=-1; P.playing=true; P.last=performance.now(); scr.classList.remove('is-video'); stopVideo(); }
+function startVideo(item){
+  P.vmode=true; scr.classList.add('is-video');
+  vid.src=item.video; if(item.poster) vid.poster=item.poster;
+  if(item.vtt){const tr=document.createElement('track'); tr.kind='subtitles'; tr.srclang='it'; tr.label='Italiano'; tr.src=item.vtt; tr.default=true; vid.appendChild(tr);}
+  vid.play().catch(()=>{ if(P&&P.vmode) P.playing=false; });
+}
+vid.addEventListener('loadedmetadata',()=>{ if(P&&P.vmode&&isFinite(vid.duration)) P.dur=vid.duration; });
+vid.addEventListener('error',()=>{ if(P&&P.vmode&&vid.getAttribute('src')) toStoryboard(); });
+vid.addEventListener('play',()=>{ if(P&&P.vmode) P.playing=true; });
+vid.addEventListener('pause',()=>{ if(P&&P.vmode) P.playing=false; });
+vid.addEventListener('click',()=>$('p-toggle').click());
+function seek(t){ if(!P) return; t=Math.max(0,Math.min(t,P.dur)); P.t=t; P.cur=-1; if(P.vmode) vid.currentTime=t; }
 function openPlayer(item){
-  P={...item,dur:durOf(item.shots),t:0,playing:true,last:performance.now(),cur:-1,clock:0};
+  P={...item,dur:item.video&&item.dur?item.dur:durOf(item.shots),t:0,playing:true,last:performance.now(),cur:-1,clock:0,vmode:false};
+  scr.classList.remove('is-video'); stopVideo();
   $('p-step').textContent=item.step; $('p-title').textContent=item.title; $('p-benefit').textContent=item.benefit;
   $('p-shots').innerHTML=item.shots.map((s,i)=>`<li><button type="button" data-i="${i}"><span class="t">${fmt(s.t)}</span><span>${s.vis}</span></button></li>`).join('');
-  dlg.showModal(); requestAnimationFrame(tick);
+  dlg.showModal(); if(item.video) startVideo(item); requestAnimationFrame(tick);
 }
 function show(i){ if(i===P.cur) return; P.cur=i; const s=P.shots[i];
   $('p-vis').textContent=s.vis; $('p-sub').textContent=s.vo;
@@ -652,18 +681,22 @@ function show(i){ if(i===P.cur) return; P.cur=i; const s=P.shots[i];
 function tick(now){
   if(!P) return;
   const dt=(now-P.last)/1000; P.last=now; P.clock+=dt;
-  if(P.playing){P.t+=dt; if(P.t>=P.dur){P.t=P.dur;P.playing=false}}
+  if(P.vmode){P.t=vid.currentTime||0; P.playing=!vid.paused&&!vid.ended;}
+  else if(P.playing){P.t+=dt; if(P.t>=P.dur){P.t=P.dur;P.playing=false}}
   let i=0; P.shots.forEach((s,k)=>{if(P.t>=s.t) i=k}); show(i);
   $('p-prog').style.width=(P.t/P.dur*100)+'%'; $('p-tc').textContent=fmt(P.t)+' / '+fmt(P.dur);
   $('p-toggle').innerHTML=P.playing?ICON_PAUSE:ICON_PLAY; $('p-toggle').setAttribute('aria-label',P.playing?'Pausa':'Riproduci');
-  drawPulse(P.clock); requestAnimationFrame(tick);
+  if(!P.vmode) drawPulse(P.clock); requestAnimationFrame(tick);
 }
-$('p-toggle').addEventListener('click',()=>{if(P.t>=P.dur)P.t=0;P.playing=!P.playing});
-$('p-bar').addEventListener('click',e=>{const r=e.currentTarget.getBoundingClientRect();P.t=(e.clientX-r.left)/r.width*P.dur;P.cur=-1});
-$('p-shots').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;P.t=P.shots[+b.dataset.i].t;P.cur=-1;P.playing=true});
+$('p-toggle').addEventListener('click',()=>{ if(!P) return;
+  if(P.vmode){ if(vid.paused||vid.ended) vid.play().catch(()=>{}); else vid.pause(); return; }
+  if(P.t>=P.dur)P.t=0; P.playing=!P.playing});
+$('p-bar').addEventListener('click',e=>{const r=e.currentTarget.getBoundingClientRect(); seek((e.clientX-r.left)/r.width*P.dur)});
+$('p-shots').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return; seek(P.shots[+b.dataset.i].t);
+  if(P.vmode) vid.play().catch(()=>{}); else P.playing=true});
 $('p-close').addEventListener('click',()=>dlg.close());
 dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close()});
-dlg.addEventListener('close',()=>{P=null});
+dlg.addEventListener('close',()=>{P=null; scr.classList.remove('is-video'); stopVideo();});
 
 /* ===== FORM: apre l'app di posta con il messaggio già compilato ===== */
 $('fb-mail').textContent=LEAD_TO;

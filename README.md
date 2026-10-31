@@ -19,6 +19,14 @@ Nel blocco `<script>` di `index.html`:
 Finché un elemento non ha il campo `video`, il player mostra lo storyboard
 ("video in produzione") con scene e sottotitoli temporizzati.
 
+## Inserire un video vero
+1. Caricare il file in `media/` (MP4 H.264 + AAC, 1280×720 o 1920×1080, con `-movflags +faststart`).
+2. Nell'elemento (`HERO`, `hero` del pubblico o una delle `cards`) aggiungere:
+   `video:'media/nome.mp4'` e, se servono, `poster:'media/nome.jpg'`, `vtt:'media/nome.vtt'`, `dur:52`.
+3. Gli `shots` restano: diventano i capitoli cliccabili sotto il video (`t` = secondo nel video).
+   `dur` è la durata scritta sulle schede; senza `dur` le schede mostrano quella dello storyboard.
+4. Se il file non si carica, il player torna da solo allo storyboard.
+
 ## Pubblicazione (da fare solo dopo approvazione)
 1. Creare il repo `BabooEsco/monitor-promo` e caricare questi file sul branch `main`.
 2. Settings → Pages → Source: *Deploy from a branch*, `main` / root.
