@@ -39,6 +39,7 @@ img{max-width:100%;display:block}
 a{color:var(--m-action)}
 button{font:inherit;cursor:pointer}
 :focus-visible{outline:2px solid var(--m-action);outline-offset:3px}
+section[tabindex="-1"]:focus{outline:none}
 .wrap{max-width:1160px;margin:0 auto;padding-inline:24px}
 @media (max-width:640px){.wrap{padding-inline:20px}}
 .eyebrow{font:400 12px/1.4 var(--m-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--m-ink-soft)}
@@ -697,6 +698,31 @@ $('p-shots').addEventListener('click',e=>{const b=e.target.closest('button');if(
 $('p-close').addEventListener('click',()=>dlg.close());
 dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close()});
 dlg.addEventListener('close',()=>{P=null; scr.classList.remove('is-video'); stopVideo();});
+
+/* ===== SCORRIMENTO MORBIDO: i link interni (menu, logo, pulsanti) animano lo scorrimento
+   con la stessa curva su tutti i browser, Safari compreso. Con "riduci movimento" attivo il salto è immediato. */
+const easeIO = x => x<.5 ? 4*x*x*x : 1-Math.pow(-2*x+2,3)/2;
+let scrollAnim=0;
+function smoothTo(y){
+  y=Math.max(0,Math.min(y,document.documentElement.scrollHeight-innerHeight));
+  const y0=scrollY, d=y-y0; cancelAnimationFrame(scrollAnim);
+  if(reduce||Math.abs(d)<2){scrollTo({top:y,behavior:'instant'});return;}
+  const dur=Math.min(1100,Math.max(500,Math.abs(d)*.45)), t0=performance.now();
+  const step=now=>{const k=Math.min(1,(now-t0)/dur); scrollTo({top:y0+d*easeIO(k),behavior:'instant'}); if(k<1) scrollAnim=requestAnimationFrame(step);};
+  scrollAnim=requestAnimationFrame(step);
+}
+['wheel','touchstart','keydown'].forEach(ev=>addEventListener(ev,()=>cancelAnimationFrame(scrollAnim),{passive:true}));
+document.addEventListener('click',e=>{
+  const a=e.target.closest('a[href^="#"]'); if(!a||e.defaultPrevented||e.metaKey||e.ctrlKey||e.shiftKey) return;
+  const id=a.getAttribute('href').slice(1);
+  if(AUDS.includes(id)) return;
+  const el=id?document.getElementById(id):null; if(id&&!el) return;
+  e.preventDefault();
+  const off=document.querySelector('header.top').offsetHeight+12;
+  smoothTo(el?el.getBoundingClientRect().top+scrollY-off:0);
+  history.pushState(null,'',id?'#'+id:location.pathname+location.search);
+  if(el){ if(!el.hasAttribute('tabindex')) el.setAttribute('tabindex','-1'); el.focus({preventScroll:true}); }
+});
 
 /* ===== FORM: apre l'app di posta con il messaggio già compilato ===== */
 $('fb-mail').textContent=LEAD_TO;
