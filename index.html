@@ -62,7 +62,14 @@ section[tabindex="-1"]:focus{outline:none}
 .top nav a{color:var(--m-ink-soft);text-decoration:none;font-size:14px;padding:10px 12px;border-radius:var(--m-radius-btn)}
 .top nav a:hover{color:var(--m-ink);background:var(--m-light)}
 .top .btn{min-height:40px;padding:0 18px;font-size:13px}
-@media (max-width:900px){.top nav a:not(.btn){display:none}}
+.menu-btn{display:none;width:44px;height:44px;margin-left:4px;border:1px solid var(--m-line);border-radius:var(--m-radius-btn);background:#fff;color:var(--m-ink);cursor:pointer;align-items:center;justify-content:center}
+.menu-btn:hover{background:var(--m-light)}
+.menu-btn .mx{display:none}
+.menu-btn[aria-expanded=true] .mb{display:none}.menu-btn[aria-expanded=true] .mx{display:block}
+.menu{display:none;border-top:1px solid var(--m-line);background:#fff}
+.menu a{display:block;padding:16px 24px;color:var(--m-ink);text-decoration:none;font-size:16px;border-bottom:1px solid var(--m-line)}
+.menu a:last-child{border-bottom:0}.menu a:hover{background:var(--m-light)}
+@media (max-width:900px){.top nav a:not(.btn){display:none}.menu-btn{display:inline-flex}.top.open .menu{display:block}}
 @media (max-width:420px){.top .logo img{height:34px}}
 
 /* Hero (§6): fondo impulso, testo a sinistra, telefono al centro-destra */
@@ -241,7 +248,17 @@ dialog::backdrop{background:rgba(15,21,28,.55);backdrop-filter:blur(3px)}
       <a href="#per-chi">Per chi</a>
       <a href="#contatti">Contatti</a>
       <a class="btn btn-secondary" href="https://monitor.baboo.eu">Accedi</a>
+      <button class="menu-btn" type="button" id="menu-btn" aria-expanded="false" aria-controls="menu" aria-label="Apri il menu">
+        <svg class="mb" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+        <svg class="mx" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      </button>
     </nav>
+  </div>
+  <div class="menu" id="menu">
+    <a href="#cosa-misura">Cosa misura</a>
+    <a href="#come-funziona">Come funziona</a>
+    <a href="#per-chi">Per chi</a>
+    <a href="#contatti">Contatti</a>
   </div>
 </header>
 
@@ -701,6 +718,13 @@ dlg.addEventListener('close',()=>{P=null; scr.classList.remove('is-video'); stop
 /* ===== SCORRIMENTO MORBIDO: i link interni (menu, logo, pulsanti) animano lo scorrimento
    con la stessa curva su tutti i browser, Safari compreso. Con "riduci movimento" attivo il salto è immediato. */
 const easeIO = x => x<.5 ? 4*x*x*x : 1-Math.pow(-2*x+2,3)/2;
+/* Menu per telefono: si chiude con un tap su un link, con Esc o se la finestra torna larga */
+const topbar=document.querySelector('.top'), mbtn=$('menu-btn');
+function setMenu(o){topbar.classList.toggle('open',o); mbtn.setAttribute('aria-expanded',o); mbtn.setAttribute('aria-label',o?'Chiudi il menu':'Apri il menu');}
+mbtn.addEventListener('click',()=>setMenu(!topbar.classList.contains('open')));
+$('menu').addEventListener('click',e=>{if(e.target.closest('a')) setMenu(false)});
+addEventListener('keydown',e=>{if(e.key==='Escape') setMenu(false)});
+matchMedia('(min-width:901px)').addEventListener('change',e=>{if(e.matches) setMenu(false)});
 let scrollAnim=0;
 function smoothTo(y){
   y=Math.max(0,Math.min(y,document.documentElement.scrollHeight-innerHeight));
