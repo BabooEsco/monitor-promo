@@ -207,12 +207,11 @@ dialog::backdrop{background:rgba(15,21,28,.55);backdrop-filter:blur(3px)}
 .screen{position:relative;aspect-ratio:16/9;color:#f4f7fa;background:var(--m-hero-bg);overflow:hidden}
 .screen canvas{position:absolute;inset:0;width:100%;height:100%}
 .screen video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#0f151c}
-.screen.is-video canvas,.screen.is-video .scene,.screen.is-video .sub{display:none}
+.screen.is-video canvas,.screen.is-video .scene{display:none}
 .screen:not(.is-video) video{display:none}
 .scene{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:14px;padding:6% 8%}
 .badge{align-self:flex-start;font:400 11px var(--m-mono);letter-spacing:.14em;text-transform:uppercase;border:1px solid rgba(228,233,238,.35);color:var(--d-ink);padding:4px 10px;border-radius:6px}
 .vis{font:200 clamp(20px,2.8vw,32px)/1.25 var(--m-font);max-width:26ch}
-.sub{position:absolute;left:50%;bottom:8%;transform:translateX(-50%);width:min(86%,720px);text-align:center;background:rgba(15,21,28,.82);padding:8px 14px;border-radius:6px;font-size:clamp(13px,1.6vw,15px)}
 .controls{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--m-line)}
 .controls button{width:44px;height:40px;display:grid;place-items:center;border:1px solid var(--m-line);background:var(--m-surface);border-radius:var(--m-radius-btn)}
 .bar{flex:1;height:4px;border-radius:2px;background:var(--m-line);position:relative;cursor:pointer}
@@ -437,7 +436,6 @@ dialog::backdrop{background:rgba(15,21,28,.55);backdrop-filter:blur(3px)}
         <span class="badge">Storyboard · video in produzione</span>
         <p class="vis" id="p-vis"></p>
       </div>
-      <p class="sub" id="p-sub"></p>
     </div>
     <div class="controls">
       <button type="button" id="p-toggle" aria-label="Pausa"></button>
@@ -678,7 +676,7 @@ function openPlayer(item){
   dlg.showModal(); if(item.video) startVideo(item); requestAnimationFrame(tick);
 }
 function show(i){ if(i===P.cur) return; P.cur=i; const s=P.shots[i];
-  $('p-vis').textContent=s.vis; $('p-sub').textContent=s.vo;
+  $('p-vis').textContent=s.vis;
   document.querySelectorAll('#p-shots button').forEach((b,k)=>b.setAttribute('aria-current',k===i)); }
 function tick(now){
   if(!P) return;
