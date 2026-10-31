@@ -7,13 +7,14 @@ all'indirizzo **https://scopri-monitor.baboo.eu**. Grafica secondo la guida di s
 ## Struttura
 - `index.html` — tutto il sito (CSS e JS inline, nessuna dipendenza).
 - `CNAME` — dominio personalizzato per GitHub Pages.
-- `assets/` — logo, icone, favicon, sfondo impulso e mockup del telefono (il mockup è anche incorporato in `index.html`).
+- `assets/` — logo, icone, favicon, sfondo impulso e mockup del telefono (il mockup è anche incorporato in `index.html`);
+  `logo-baboo-light.png` è il logo BABOO del piè di pagina (copia da baboo.eu).
 - `media/` — da creare quando arriveranno i video veri.
 
 ## Contenuti
 Nel blocco `<script>` di `index.html`:
 - `HERO` — storyboard del video di apertura generale.
-- `AUD` — per ogni pubblico (Famiglie, Aziende, Condomini, Comunità energetiche): testi, video di apertura e 5 schede video con storyboard (`shots`).
+- `AUD` — per ogni pubblico (Famiglie, Aziende, Condomini, Comunità energetiche, Installatori): testi, video di apertura e 5 schede video con storyboard (`shots`).
 
 Finché un elemento non ha il campo `video`, il player mostra lo storyboard
 ("video in produzione") con scene e sottotitoli temporizzati.
@@ -25,4 +26,4 @@ Finché un elemento non ha il campo `video`, il player mostra lo storyboard
    (stessa impostazione usata per scopri-mosaika).
 4. In Settings → Pages verificare il dominio e attivare *Enforce HTTPS*.
 
-Link diretti per pubblico: `#famiglie`, `#aziende`, `#condomini`, `#cer`.
+Link diretti per pubblico: `#famiglie`, `#aziende`, `#condomini`, `#cer`, `#installatori`.
