@@ -196,6 +196,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--m-action
 .msg.err{background:var(--m-err-bg);color:var(--m-err)}
 .fallback{border:1px solid var(--m-line);border-radius:8px;padding:12px 14px;font-size:14px;color:var(--m-ink-soft)}
 .fallback strong{color:var(--m-ink);font-weight:500;user-select:all}
+.fallback a{color:var(--m-action)}
+label.check{display:grid;grid-template-columns:22px 1fr;gap:10px;align-items:start;min-height:44px;padding-top:6px;color:var(--m-ink-soft)}
+label.check input{min-height:0;width:20px;height:20px;margin:1px 0 0;accent-color:var(--m-action)}
+label.check a{color:var(--m-action)}
 @media (max-width:820px){.contact{grid-template-columns:1fr;padding:24px;gap:28px}}
 
 /* Piè di pagina BABOO */
@@ -414,15 +418,17 @@ dialog::backdrop{background:rgba(15,21,28,.55);backdrop-filter:blur(3px)}
         <label>Nome e cognome<input id="f-nome" autocomplete="name" required></label>
         <label><span id="f-az-label">Azienda</span><input id="f-az" autocomplete="organization"></label>
         <label>Telefono<input id="f-tel" type="tel" autocomplete="tel" required></label>
+        <label>Email<input id="f-email" type="email" autocomplete="email" inputmode="email" required></label>
         <label>Zona
           <select id="f-zona"><option>Piemonte</option><option>Lombardia</option><option>Liguria</option><option>Valle d'Aosta</option><option>Altra regione</option></select>
         </label>
         <label>Messaggio (facoltativo)<textarea id="f-msg" rows="4"></textarea></label>
         <div class="hp" aria-hidden="true"><label>Lascia vuoto<input id="f-hp" tabindex="-1" autocomplete="off"></label></div>
+        <label class="check"><input id="f-privacy" type="checkbox" required><span>Ho letto la <a href="https://www.baboo.eu/privacy/" target="_blank" rel="noopener">privacy policy</a> e accetto di essere ricontattato da BABOO ESCo.</span></label>
         <button class="btn btn-primary" type="submit" id="f-submit">Richiedi una demo</button>
-        <p class="small">Premendo il pulsante si apre la tua app di posta con il messaggio già compilato. Controlla e premi Invia.</p>
+        <p class="small">La richiesta arriva direttamente a BABOO ESCo. Ti ricontattiamo noi al telefono o via email.</p>
         <div class="msg ok" id="form-ok" role="status" hidden></div>
-        <div class="fallback" id="form-fallback" hidden>Se l’app di posta non si è aperta, scrivi a <strong id="fb-mail"></strong> indicando nome, telefono e zona.</div>
+        <div class="fallback" id="form-fallback" hidden>Non siamo riusciti a inviare la richiesta. <a id="fb-link" href="#">Mandala via email</a> oppure scrivi a <strong id="fb-mail"></strong>.</div>
       </form>
     </div>
   </div>
@@ -747,19 +753,45 @@ document.addEventListener('click',e=>{
   if(el){ if(!el.hasAttribute('tabindex')) el.setAttribute('tabindex','-1'); el.focus({preventScroll:true}); }
 });
 
-/* ===== FORM: apre l'app di posta con il messaggio già compilato ===== */
+/* ===== FORM: crea il lead in Odoo tramite il servizio di baboo.eu (lo stesso dei form del sito).
+   UTM e referrer sono quelli del primo arrivo sulla pagina; senza UTM il servizio usa
+   Sito Web Baboo / Organico / Sito · MONITOR. Se il servizio non risponde, resta l'invio via email. */
+const LEAD_API='https://www.baboo.eu/api/lead', PRIVACY_V='2026-11';
+const sget=k=>{try{return sessionStorage.getItem(k)}catch(e){return null}}, sset=(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}};
+(()=>{ const q=new URLSearchParams(location.search), u={};
+  ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','fbclid'].forEach(k=>{if(q.get(k)) u[k]=q.get(k)});
+  if(Object.keys(u).length&&!sget('m_utm')) sset('m_utm',JSON.stringify(u));
+  try{ if(document.referrer&&!sget('m_ref')){const r=new URL(document.referrer); if(r.host!==location.host) sset('m_ref',r.host+r.pathname);} }catch(e){}
+  if(!sget('m_landing')) sset('m_landing',location.pathname+location.hash);
+})();
 $('fb-mail').textContent=LEAD_TO;
-$('lead-form').addEventListener('submit',e=>{
+$('lead-form').addEventListener('submit',async e=>{
   e.preventDefault();
-  const v=id=>$(id).value.trim(), ok=$('form-ok');
+  const v=id=>$(id).value.trim(), ok=$('form-ok'), fb=$('form-fallback'), btn=$('f-submit');
+  const say=(cls,txt)=>{ok.hidden=false;ok.className='msg '+cls;ok.textContent=txt};
   if(v('f-hp')) return;
-  if(!v('f-nome')||!v('f-tel')){ok.hidden=false;ok.className='msg err';ok.textContent='Inserisci nome e telefono, così sappiamo chi richiamare.';return;}
-  const a=AUD[aud];
-  const subject=`MONITOR · ${a.cta} (${document.querySelector('#tabs [aria-selected="true"]').textContent})`;
-  const body=[`Nome: ${v('f-nome')}`,`${a.az}: ${v('f-az')||'-'}`,`Telefono: ${v('f-tel')}`,`Zona: ${v('f-zona')}`,'',v('f-msg')].join('\n');
-  location.href=`mailto:${LEAD_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  ok.hidden=false; ok.className='msg ok'; ok.textContent=a.ok;
-  setTimeout(()=>{$('form-fallback').hidden=false},1500);
+  fb.hidden=true;
+  if(!v('f-nome')||!v('f-tel')||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v('f-email'))){say('err','Inserisci nome, telefono ed email, così sappiamo come ricontattarti.');return;}
+  if(!$('f-privacy').checked){say('err','Per inviare la richiesta serve la conferma della privacy policy.');return;}
+  const a=AUD[aud], pub=document.querySelector('#tabs [aria-selected="true"]').textContent.trim();
+  let utm=null; try{utm=JSON.parse(sget('m_utm')||'null')}catch(e){}
+  const payload={nome:v('f-nome'),telefono:v('f-tel'),email:v('f-email'),azienda:v('f-az')||undefined,
+    zona:v('f-zona'),messaggio:v('f-msg')||undefined,pubblico:pub,
+    oggetto:`MONITOR · ${a.cta} · ${pub}`,origine:'monitor',
+    privacy:true,privacy_v:PRIVACY_V,pagina:location.pathname+(location.hash||''),
+    pagina_da:sget('m_landing')||'',referrer:sget('m_ref')||'',utm:utm||undefined,hp:v('f-hp')};
+  const mailBody=[`Nome: ${payload.nome}`,`${a.az}: ${payload.azienda||'-'}`,`Telefono: ${payload.telefono}`,`Email: ${payload.email}`,`Zona: ${payload.zona}`,'',payload.messaggio||''].join('\n');
+  $('fb-link').href=`mailto:${LEAD_TO}?subject=${encodeURIComponent(payload.oggetto)}&body=${encodeURIComponent(mailBody)}`;
+  btn.disabled=true; btn.textContent='Invio in corso…'; ok.hidden=true;
+  const ctrl=new AbortController(), tm=setTimeout(()=>ctrl.abort(),12000);
+  try{
+    const r=await fetch(LEAD_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:ctrl.signal});
+    clearTimeout(tm); let j={}; try{j=await r.json()}catch(e){}
+    if(r.ok&&j.ok){ $('lead-form').reset(); say('ok',a.ok); return; }
+    if(r.status===400){ say('err','Controlla nome, telefono, email e la casella della privacy.'); return; }
+    throw new Error('lead '+r.status);
+  }catch(err){ clearTimeout(tm); fb.hidden=false; }
+  finally{ btn.disabled=false; btn.textContent=a.cta; }
 });
 
 render();
